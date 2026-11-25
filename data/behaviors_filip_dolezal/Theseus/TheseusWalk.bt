@@ -1,0 +1,365 @@
+{
+  "name": "Bravo six, going dark",
+  "id": "72933263-7354-4cb3-ae15-6b7344e595ea",
+  "type": "supervisedParallel",
+  "subtrees": [
+    {
+      "name": "Wait Forever",
+      "id": "841ed2fd-9f94-4904-829e-c0b101996f53",
+      "type": "waitForever"
+    },
+    {
+      "name": "MinotaurPositionUpdate",
+      "id": "4d2fb018-5c42-46f3-86dd-b67ead731298",
+      "type": "messageHandler",
+      "subject": "MinotaurPositionUpdate",
+      "handler": [
+        "if msg.value.position then",
+        "    loc.lastKnownMinotaurPosition = msg.value.position",
+        "    DebugLog(\"Got a message w new pos: \" .. tostring(loc.lastKnownMinotaurPosition))",
+        "end"
+      ]
+    },
+    {
+      "name": "Theseus Decide",
+      "id": "09c99daa-8586-4579-b3dd-a8c0c4299761",
+      "type": "selector",
+      "subtrees": [
+        {
+          "name": "KILL KILL KILL!!!",
+          "id": "9ae81087-30e3-4312-884e-70b94373d2ea",
+          "type": "fire",
+          "decorators": [
+            {
+              "id": "5961d837-eac0-412d-a97b-333ff82b2658",
+              "type": "scriptCondition",
+              "name": "See enemy?",
+              "script": [
+                "local enemies = GetEntitiesInArea( Circle(self:GetPosition(), self:GetVisibilityRange()) , { hasBrain = true, enemyOf = self })",
+                "",
+                "if enemies then",
+                "    loc.enemy = enemies[1]",
+                "else",
+                "    loc.enemy = nil",
+                "end",
+                "",
+                "if loc.enemy ~= nil and self:IsVisible(loc.enemy) then",
+                "    DebugLog(\"Yup, vidim enemaka\")",
+                "    return true",
+                "else",
+                "    return false",
+                "end"
+              ]
+            }
+          ],
+          "rounds": [
+            "self:ReqHeadingAimAtEntity(loc.enemy)",
+            "return 5"
+          ],
+          "forced": true
+        },
+        {
+          "name": "Movement",
+          "id": "a800c8af-a9b0-42ed-9839-af718d452b80",
+          "type": "sequence",
+          "subtrees": [
+            {
+              "name": "Next corner",
+              "id": "f2748df0-e887-4224-a5ab-973e2a740379",
+              "type": "scriptAction",
+              "script": [
+                "loc.currentCorner = loc.currentCorner+1"
+              ]
+            },
+            {
+              "name": "Set speed",
+              "id": "19bf5889-3ce1-414e-848f-e9f6eb2f2f4a",
+              "type": "setEntitySpeedLimits",
+              "movementSpeed": [
+                "if loc.corners ~= nil and loc.corners[loc.currentCorner] ~= nil and loc.corners[loc.currentCorner].isBefore then",
+                "    return 1000",
+                "else",
+                "    return 1.5",
+                "end"
+              ]
+            },
+            {
+              "name": "Move to",
+              "id": "37e448f1-ff1c-4fa5-80ff-39ac24d0f0bd",
+              "type": "move",
+              "position": [
+                "local c = loc.corners and loc.corners[loc.currentCorner]",
+                "DebugLog(tostring(loc.currentCorner))",
+                "DebugLog(tostring(c and c.pos))",
+                "DebugLog(tostring(self:GetPosition()))",
+                "return c and c.pos or loc.path:EndPoint()"
+              ]
+            }
+          ],
+          "decorators": [
+            {
+              "id": "2214dc20-ad95-431e-a242-7b65007356ae",
+              "type": "scriptCondition",
+              "name": "Path exists?",
+              "script": [
+                "if loc.path == nil or loc.future ~= nil then",
+                "    return false",
+                "end",
+                "",
+                "if loc.currentCorner > #loc.corners + 1 then",
+                "    return false",
+                "end",
+                "return true"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Wait Forever",
+          "id": "e91a90ee-9d0f-4017-bea7-b385549cc85a",
+          "type": "waitForever"
+        }
+      ],
+      "active": true
+    },
+    {
+      "name": "Path Building",
+      "id": "c5ff5654-0f72-4e78-b029-84c60b63f3dc",
+      "type": "sequence",
+      "subtrees": [
+        {
+          "name": "Wait for minotaur position",
+          "id": "443a5de6-67f6-4ce5-9734-6daed4cff9c7",
+          "type": "waitUntil",
+          "condition": [
+            "return loc.lastKnownMinotaurPosition ~= nil and loc.previousMinotaurPosition ~= loc.lastKnownMinotaurPosition"
+          ]
+        },
+        {
+          "name": "Find path",
+          "id": "5f996beb-e285-493f-a8cc-417071bcb450",
+          "type": "scriptAction",
+          "script": [
+            "loc.previousMinotaurPosition = loc.lastKnownMinotaurPosition",
+            "loc.future = FindPath(self:GetPosition(), loc.lastKnownMinotaurPosition)",
+            "loc.lastKnownMinotaurPosition = nil -- so waituntil waits again"
+          ]
+        },
+        {
+          "name": "Wait for path",
+          "id": "affc2882-ee81-4f01-9a47-3afec762068d",
+          "type": "waitUntil",
+          "condition": [
+            "return loc.future:IsReady()"
+          ]
+        },
+        {
+          "name": "find corners",
+          "id": "64e21a9f-57ba-4c65-ba6a-c3db96818683",
+          "type": "scriptAction",
+          "script": [
+            "-- save path",
+            "loc.path = loc.future:Value()",
+            "loc.future = nil",
+            "DebugLog(\"Path saved\")",
+            "",
+            "local STEP, W, CORNER_ANGLE, X = 1, 2, 30, 2",
+            "local len = loc.path:Length()",
+            "local rawCorners, best = {}, nil",
+            "",
+            "for d = W, len - W, STEP do",
+            "    local p0 = loc.path:PositionAlongPath(d - W)",
+            "    local p1 = loc.path:PositionAlongPath(d)",
+            "    local p2 = loc.path:PositionAlongPath(d + W)",
+            "",
+            "    local ax, ay = p1:X() - p0:X(), p1:Y() - p0:Y()",
+            "    local bx, by = p2:X() - p1:X(), p2:Y() - p1:Y()",
+            "    local la, lb = math.sqrt(ax * ax + ay * ay), math.sqrt(bx * bx + by * by)",
+            "",
+            "    -- calculate angle of the triangle along path",
+            "    local angle = 0",
+            "    if la > 0.01 and lb > 0.01 then",
+            "        local c = math.max(-1, math.min(1, (ax * bx + ay * by) / (la * lb)))",
+            "        angle = math.deg(math.acos(c))",
+            "    end",
+            "",
+            "    -- consider it as corner if greater than 30 degrees",
+            "    if angle > CORNER_ANGLE then",
+            "        if not best or angle > best.angle then",
+            "            best = { angle = angle, d = d }",
+            "        end",
+            "    elseif best then",
+            "        table.insert(rawCorners, best)",
+            "        best = nil",
+            "    end",
+            "end",
+            "if best then table.insert(rawCorners, best) end",
+            "",
+            "local zones = {}",
+            "for _, c in ipairs(rawCorners) do",
+            "    local b, a = math.max(c.d - X, 0), math.min(c.d + X, len)",
+            "    local last = zones[#zones]",
+            "    if last and b <= last.after then",
+            "        last.after = math.max(last.after, a)",
+            "    else",
+            "        table.insert(zones, { before = b, after = a })",
+            "    end",
+            "end",
+            "",
+            "loc.corners = {}",
+            "for _, z in ipairs(zones) do",
+            "    table.insert(loc.corners, { pos = loc.path:PositionAlongPath(z.before), isBefore = true })",
+            "    table.insert(loc.corners, { pos = loc.path:PositionAlongPath(z.after), isBefore = false })",
+            "end",
+            "",
+            "-- reset current corner index",
+            "loc.currentCorner = 0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "parallel loop",
+      "id": "e5a5444d-0cb4-4702-874d-c04e612a9544",
+      "type": "parallel",
+      "subtrees": [
+        {
+          "name": "path visualization",
+          "id": "4c7abdbb-77ec-4354-988b-7e8a0ed1c507",
+          "type": "scriptAction",
+          "script": [
+            "if loc.path ~= null then",
+            "\tfor i=0, loc.path:GetSegmentCount()-1, 1 do",
+            "        \tDebugLine(",
+            "        \tloc.path:GetSegmentStart(i),",
+            "        \tloc.path:GetSegmentEnd(i),",
+            "        \t0,0,1,1",
+            "        \t)",
+            "        end",
+            " end"
+          ]
+        },
+        {
+          "name": "corner visualization",
+          "id": "b0e62509-eaa8-4384-b300-37d8fb785dc9",
+          "type": "scriptAction",
+          "script": [
+            "local radius = 2",
+            "local STEP = math.pi / 12",
+            "for i, c in ipairs(loc.corners or {}) do",
+            "    local pos = c.pos",
+            "    if pos then",
+            "        for a = 0, math.pi * 2 - STEP, STEP do",
+            "            local p  = Vec3(pos:X() + radius * math.sin(a),        pos:Y() + radius * math.cos(a),        pos:Z() + 1)",
+            "            local np = Vec3(pos:X() + radius * math.sin(a + STEP), pos:Y() + radius * math.cos(a + STEP), pos:Z() + 1)",
+            "            if i < loc.currentCorner then",
+            "                DebugLine(p, np, 0, 1, 0, 1) -- green circle for past corners",
+            "            else",
+            "                DebugLine(p, np, 1, 0, 0, 1) -- red circle for future unvisited corners",
+            "            end",
+            "        end",
+            "    end",
+            "end"
+          ]
+        }
+      ],
+      "decorators": [
+        {
+          "id": "c00d0fad-9620-405b-a7d2-d4cde407dcad",
+          "type": "loopForever",
+          "name": "debug stuff"
+        }
+      ],
+      "waitForAll": true
+    }
+  ],
+  "meta": {
+    "nodesInfo": [
+      {
+        "id": "72933263-7354-4cb3-ae15-6b7344e595ea",
+        "position": "1700,62.9"
+      },
+      {
+        "id": "841ed2fd-9f94-4904-829e-c0b101996f53",
+        "position": "1025,162.9"
+      },
+      {
+        "id": "4d2fb018-5c42-46f3-86dd-b67ead731298",
+        "position": "1187.5,237.9"
+      },
+      {
+        "id": "09c99daa-8586-4579-b3dd-a8c0c4299761",
+        "position": "1700,362.9"
+      },
+      {
+        "id": "9ae81087-30e3-4312-884e-70b94373d2ea",
+        "position": "1350,475.4"
+      },
+      {
+        "id": "a800c8af-a9b0-42ed-9839-af718d452b80",
+        "position": "1700,475.4"
+      },
+      {
+        "id": "f2748df0-e887-4224-a5ab-973e2a740379",
+        "position": "1512.5,662.9"
+      },
+      {
+        "id": "19bf5889-3ce1-414e-848f-e9f6eb2f2f4a",
+        "position": "1700,662.9"
+      },
+      {
+        "id": "37e448f1-ff1c-4fa5-80ff-39ac24d0f0bd",
+        "position": "1887.5,662.9"
+      },
+      {
+        "id": "e91a90ee-9d0f-4017-bea7-b385549cc85a",
+        "position": "2050,525.4"
+      },
+      {
+        "id": "c5ff5654-0f72-4e78-b029-84c60b63f3dc",
+        "position": "2216.18571428571,206.857142857143"
+      },
+      {
+        "id": "443a5de6-67f6-4ce5-9734-6daed4cff9c7",
+        "position": "2062.5,362.9"
+      },
+      {
+        "id": "5f996beb-e285-493f-a8cc-417071bcb450",
+        "position": "2287.5,362.9"
+      },
+      {
+        "id": "affc2882-ee81-4f01-9a47-3afec762068d",
+        "position": "2462.5,362.9"
+      },
+      {
+        "id": "64e21a9f-57ba-4c65-ba6a-c3db96818683",
+        "position": "2637.5,362.9"
+      },
+      {
+        "id": "e5a5444d-0cb4-4702-874d-c04e612a9544",
+        "position": "2850,175.4"
+      },
+      {
+        "id": "4c7abdbb-77ec-4354-988b-7e8a0ed1c507",
+        "position": "2862.5,362.9"
+      },
+      {
+        "id": "b0e62509-eaa8-4384-b300-37d8fb785dc9",
+        "position": "3050,362.9"
+      }
+    ],
+    "editorObjects": [],
+    "canvasSize": "3840,2750.4",
+    "gridPadding": "0,0.399999999999974"
+  },
+  "parameters": [],
+  "locals": {
+    "lastKnownMinotaurPosition": "return nil",
+    "path": "return nil",
+    "future": "return nil",
+    "previousMinotaurPosition": "return nil",
+    "corners": "return nil",
+    "currentCorner": "return 0",
+    "enemy": "return nil"
+  }
+}

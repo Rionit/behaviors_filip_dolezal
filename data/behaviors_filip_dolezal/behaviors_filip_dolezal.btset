@@ -1,0 +1,12 @@
+{
+  "name": "behaviors_filip_dolezal",
+  "trees": [
+    "Theseus\\TheseusWalk.bt"
+  ],
+  "initScripts": [
+    "Theseus\\Theseus.class.lua",
+    "classes.lua"
+  ],
+  "parameters": {},
+  "capabilities": {}
+}

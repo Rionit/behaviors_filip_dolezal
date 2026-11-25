@@ -1,10 +1,10 @@
 #include "\vbs2\basic_defines.hpp"
-#define __CurrentDir__ \vbs2\customer\plugins\behaviors_sample\
+#define __CurrentDir__ \vbs2\customer\plugins\behaviors_filip_dolezal\
 
 //Class necessary for VBS to load the new addon correctly
 class CfgPatches
 {
-	class vbs2_vbs_plugins_behaviors_sample
+	class vbs2_vbs_plugins_behaviors_filip_dolezal
 	{
 		units[] = {};
 		weapons[] = {};
@@ -26,19 +26,19 @@ class CfgPatches
 // Adds btset to list of btsets which are loaded automatically
 class CfgBehaviorTrees
 {
-	class behaviors_sample //this is an arbitrary className, it needs to be unique though
+	class behaviors_filip_dolezal //this is an arbitrary className, it needs to be unique though
 	{
-		path = "\vbs2\customer\plugins\behaviors_sample\data\behaviors_sample\behaviors_sample.btset"; //This is the relative path to the BT-set file to load
-		name = "behaviors_sample"; // This is the btset name duplicated in the configuration
+		path = "\vbs2\customer\plugins\behaviors_filip_dolezal\data\behaviors_filip_dolezal\behaviors_filip_dolezal.btset"; //This is the relative path to the BT-set file to load
+		name = "behaviors_filip_dolezal"; // This is the btset name duplicated in the configuration
 	};
 };
 
 // Defines the new order as available from the Control AI - Military
 class CfgAvailableBehaviors
 {
-	class behaviors_sample
+	class behaviors_filip_dolezal
 	{
-		icon = "\vbs2\customer\plugins\behaviors_sample\data\behaviors_sample.paa";
+		icon = "\vbs2\customer\plugins\behaviors_filip_dolezal\data\behaviors_filip_dolezal.paa";
 		allowRotate = true;
 
 
